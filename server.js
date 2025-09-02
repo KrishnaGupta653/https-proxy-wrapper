@@ -9,8 +9,8 @@ const app = express();
 app.use(bodyParser.json());
 
 // File path for persistent backup
-// const DATA_FILE = '/mnt/data/path-map.json';
-const DATA_FILE = 'C:/Users/kg060/Desktop/projects/http-proxy-wrapper/data.json';
+const DATA_FILE = '/mnt/data/path-map.json';
+// const DATA_FILE = 'C:/Users/kg060/Desktop/projects/http-proxy-wrapper/data.json';
 
 // Connect to Redis
 const redis = new Redis(process.env.REDIS_URL);
