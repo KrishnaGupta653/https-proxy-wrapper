@@ -458,9 +458,9 @@ app.get("/admin/list", (req, res) => {
   res.json(pathMap);
 });
 
-// Dynamic proxy for all short paths (must be last route)
-app.use("/:shortPath/*", (req, res, next) => {
-  const { shortPath } = req.params;
+// Dynamic proxy for all short paths and subpaths
+app.use("/:shortPath(*)", (req, res, next) => {
+  const shortPath = req.params.shortPath;
   const targetUrl = pathMap[shortPath];
 
   if (!targetUrl) {
@@ -488,7 +488,8 @@ app.use("/:shortPath/*", (req, res, next) => {
       // Forward original host and protocol info
       proxyReq.setHeader('X-Forwarded-Host', req.get('host'));
       proxyReq.setHeader('X-Forwarded-Proto', req.header('x-forwarded-proto') || req.protocol);
-      console.log(`Forwarding to: ${targetUrl}${req.url.replace(`/${shortPath}`, '')}`);
+      const forwardedPath = req.url.replace(`/${shortPath}`, '');
+      console.log(`Forwarding to: ${targetUrl}${forwardedPath}`);
     },
     onProxyRes: (proxyRes, req, res) => {
       console.log(`Response from ${targetUrl}: ${proxyRes.statusCode}`);
@@ -519,19 +520,6 @@ app.use("/:shortPath/*", (req, res, next) => {
   });
 
   proxy(req, res, next);
-});
-
-// Fallback for root paths of proxied sites
-app.use("/:shortPath", (req, res, next) => {
-  const { shortPath } = req.params;
-  const targetUrl = pathMap[shortPath];
-
-  if (!targetUrl) {
-    return next(); // Let it fall through to 404
-  }
-
-  // Redirect to add trailing slash for better compatibility
-  res.redirect(301, `/${shortPath}/`);
 });
 
 // Start server
