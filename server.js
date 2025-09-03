@@ -328,8 +328,8 @@ app.get("/admin/list", (req, res) => {
   res.json(pathMap);
 });
 
-// Dynamic proxy for all short paths (must be last route)
-app.use("/:shortPath/*", (req, res, next) => {
+// Dynamic proxy for all short paths
+app.use("/:shortPath", (req, res, next) => {
   const { shortPath } = req.params;
   const targetUrl = pathMap[shortPath];
 
@@ -346,62 +346,33 @@ app.use("/:shortPath/*", (req, res, next) => {
     `);
   }
 
-  console.log(`Proxying ${req.method} ${req.originalUrl} to ${targetUrl}`);
-
   // Create proxy middleware
   const proxy = createProxyMiddleware({
     target: targetUrl,
     changeOrigin: true,
     pathRewrite: { [`^/${shortPath}`]: "" },
-    logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
       // Forward original host and protocol info
       proxyReq.setHeader('X-Forwarded-Host', req.get('host'));
       proxyReq.setHeader('X-Forwarded-Proto', req.header('x-forwarded-proto') || req.protocol);
-      console.log(`Forwarding to: ${targetUrl}${req.url.replace(`/${shortPath}`, '')}`);
-    },
-    onProxyRes: (proxyRes, req, res) => {
-      console.log(`Response from ${targetUrl}: ${proxyRes.statusCode}`);
     },
     onError: (err, req, res) => {
-      console.error(`Proxy error for ${shortPath} (${targetUrl}):`, {
-        message: err.message,
-        code: err.code,
-        originalUrl: req.originalUrl
-      });
-      
-      if (!res.headersSent) {
-        res.status(500).send(`
-          <!DOCTYPE html>
-          <html>
-          <body>
-              <h2>Proxy Error</h2>
-              <p>Unable to connect to the backend service.</p>
-              <p><strong>Target:</strong> ${targetUrl}</p>
-              <p><strong>Error:</strong> ${err.message}</p>
-              <p><strong>Path:</strong> ${req.originalUrl}</p>
-              <a href="/">← Back to site list</a>
-          </body>
-          </html>
-        `);
-      }
+      console.error(`Proxy error for ${shortPath}:`, err.message);
+      res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+        <body>
+            <h2>Proxy Error</h2>
+            <p>Unable to connect to the backend service.</p>
+            <p>Error: ${err.message}</p>
+            <a href="/">← Back to site list</a>
+        </body>
+        </html>
+      `);
     }
   });
 
   proxy(req, res, next);
-});
-
-// Fallback for root paths of proxied sites
-app.use("/:shortPath", (req, res, next) => {
-  const { shortPath } = req.params;
-  const targetUrl = pathMap[shortPath];
-
-  if (!targetUrl) {
-    return next(); // Let it fall through to 404
-  }
-
-  // Redirect to add trailing slash for better compatibility
-  res.redirect(301, `/${shortPath}/`);
 });
 
 // Start server
